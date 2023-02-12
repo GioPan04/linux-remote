@@ -1,94 +1,75 @@
 use std::fs::File;
+use std::{fs::OpenOptions, thread, time::Duration};
 use std::os::unix::fs::OpenOptionsExt;
-use std::{fs::OpenOptions, io, thread, time::Duration};
 
-use input_linux::{
-  EventKind, EventTime, InputEvent, InputId, RelativeAxis, RelativeEvent, SynchronizeEvent,
-  SynchronizeKind, UInputHandle, KeyEvent, KeyState, Key,
-};
+use input_linux::UInputHandle;
 use nix::libc::O_NONBLOCK;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream, Result};
+use tokio::net::{TcpListener, TcpStream};
+mod models;
+mod input;
 
-// A rust translation of the uinput example available at
-// https://docs.kernel.org/input/uinput.html#mouse-movements
-// Creates a virtual mouse, moves it down and to the right 250 units
-// in increments of 5 units
-//
-// This example requires either root (bad practice, too general) or
-// the running user to be a member of the uinput group to actually
-// make the mouse move
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> Result<()>  {
 	let uinput_file = OpenOptions::new()
 		.read(true)
 		.write(true)
 		.custom_flags(O_NONBLOCK)
 		.open("/dev/uinput")?;
-
-
-	let uinput = create_mouse(uinput_file).unwrap();
-
-
+		
+	let uinput = input::create_mouse(uinput_file).unwrap();
 	thread::sleep(Duration::from_secs(1));
 	
-	for _ in 0..50 {
-		move_cursor(&uinput, 5, 5);
-		thread::sleep(Duration::from_micros(15_000));
+
+	let listener = TcpListener::bind("127.0.0.1:1234").await.unwrap();
+	println!("Server is listening on *:1234");
+
+	loop {
+		let ( socket, address ) = listener.accept().await.unwrap();
+		println!("New connection received from {:?}", address);
+
+		handle_connection(socket, &uinput).await.unwrap();
 	}
+
+	// for _ in 0..50 {
+	// 	move_cursor(&uinput, 5, 5);
+	// 	thread::sleep(Duration::from_micros(15_000));
+	// }
 	
-	let keys = [Key::H, Key::E, Key::L, Key::L, Key::O, Key::Space, Key::W, Key::O, Key::R, Key::L, Key::D, Key::Enter];
+	// let keys = [Key::H, Key::E, Key::L, Key::L, Key::O, Key::Space, Key::W, Key::O, Key::R, Key::L, Key::D, Key::Enter];
 
-	for key in keys {
-		press_key(&uinput, key);
+	// for key in keys {
+	// 	press_key(&uinput, key);
+	// }
+
+
+	// ;   
+}
+
+
+async fn handle_connection(socket: TcpStream, uinput: &UInputHandle<File>) -> Result<()> {
+	let mut socket = BufStream::new(socket);
+	socket.write_all(b"Hello from the server\n").await?;
+	socket.flush().await?;
+
+	let mut line = vec![];
+
+	loop {
+		line.clear();
+		socket.read_until(b'\n', &mut line).await?;
+
+		if line.is_empty() {
+			println!("Exited the connection");
+			return Ok(());
+		}
+
+		let msg: models::Message = serde_json::from_slice(&line).unwrap();
+
+		println!("Received: x: {}, y: {}", msg.x, msg.y);
+		
+		input::move_cursor(uinput, msg.x, msg.y);
+
+		socket.write_all(&line).await?;
+		socket.flush().await?;
 	}
-
-
-	uinput.dev_destroy()?;   
-	Ok(())
-}
-
-fn press_key(uinput: &UInputHandle<File>, key: Key) {
-	const ZERO: EventTime = EventTime::new(0, 0);
-
-	let events = [
-		*InputEvent::from(KeyEvent::new(ZERO, key, KeyState::PRESSED)).as_raw(),
-		*InputEvent::from(SynchronizeEvent::new(ZERO, SynchronizeKind::Report, 0)).as_raw(),
-		*InputEvent::from(KeyEvent::new(ZERO, key, KeyState::RELEASED)).as_raw(),
-		*InputEvent::from(SynchronizeEvent::new(ZERO, SynchronizeKind::Report, 0)).as_raw(),
-	];
-	uinput.write(&events).unwrap();
-}
-
-fn move_cursor(uinput: &UInputHandle<File>, x: i32, y: i32) {
-	const ZERO: EventTime = EventTime::new(0, 0);
-	let events = [
-		*InputEvent::from(RelativeEvent::new(ZERO, RelativeAxis::X, x)).as_raw(),
-		*InputEvent::from(RelativeEvent::new(ZERO, RelativeAxis::Y, y)).as_raw(),
-		*InputEvent::from(SynchronizeEvent::new(ZERO, SynchronizeKind::Report, 0)).as_raw(),
-	];
-	uinput.write(&events).unwrap();
-}
-
-fn create_mouse(uinput_file: File) -> io::Result<UInputHandle<File>> {
-	let mouse = UInputHandle::new(uinput_file);
-
-	mouse.set_evbit(EventKind::Key)?; 
-	for i in 0..279 {
-		mouse.set_keybit(input_linux::Key::from_code(i).unwrap())?;
-	}
-   
-	mouse.set_evbit(EventKind::Relative)?;
-	mouse.set_relbit(RelativeAxis::X)?; 
-	mouse.set_relbit(RelativeAxis::Y)?;
-
-
-	let input_id = InputId {
-		bustype: input_linux::sys::BUS_USB,
-		vendor: 0x1234,
-		product: 0x5678,
-		version: 0,
-	};
-
-	let device_name = b"Linux Remote Virtual Device";
-	mouse.create(&input_id, device_name, 0, &[])?;
-
-	Ok(mouse)
 }
