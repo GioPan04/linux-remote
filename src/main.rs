@@ -2,7 +2,7 @@ use std::fs::File;
 use std::{fs::OpenOptions, thread, time::Duration};
 use std::os::unix::fs::OpenOptionsExt;
 
-use input_linux::UInputHandle;
+use input_linux::{UInputHandle, Key};
 use nix::libc::O_NONBLOCK;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream, Result};
 use tokio::net::{TcpListener, TcpStream};
@@ -21,14 +21,14 @@ async fn main() -> Result<()>  {
 	thread::sleep(Duration::from_secs(1));
 	
 
-	let listener = TcpListener::bind("127.0.0.1:1234").await.unwrap();
+	let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
 	println!("Server is listening on *:1234");
 
 	loop {
-		let ( socket, address ) = listener.accept().await.unwrap();
+		let ( socket, address ) = listener.accept().await?;
 		println!("New connection received from {:?}", address);
 
-		handle_connection(socket, &uinput).await.unwrap();
+		handle_connection(socket, &uinput).await?;
 	}
 
 	// for _ in 0..50 {
@@ -64,12 +64,25 @@ async fn handle_connection(socket: TcpStream, uinput: &UInputHandle<File>) -> Re
 		}
 
 		let msg: models::Message = serde_json::from_slice(&line).unwrap();
+		handle_message(msg, uinput).unwrap();
 
-		println!("Received: x: {}, y: {}", msg.x, msg.y);
-		
-		input::move_cursor(uinput, msg.x, msg.y);
-
-		socket.write_all(&line).await?;
-		socket.flush().await?;
+		// socket.write_all(&line).await?;
+		// socket.flush().await?;
 	}
+}
+
+fn handle_message(msg: models::Message, uinput: &UInputHandle<File>) -> Result<()> {
+	match msg.action {
+		0x1 => {
+			let coordinates: models::CursorMoveMessage = serde_json::from_value(msg.payload).unwrap();
+			input::move_cursor(uinput, coordinates.x, coordinates.y);
+		}
+		0x2 => {
+			let keypress: models::KeyPressMessage = serde_json::from_value(msg.payload).unwrap();
+			input::press_key(uinput, Key::from_code(keypress.key)?)
+		}
+		_ => {}
+	}
+
+	Ok(())
 }
