@@ -1,16 +1,16 @@
 use std::fs::File;
+use std::io::{BufReader, BufRead, Result};
+use std::net::{TcpListener, TcpStream};
 use std::{fs::OpenOptions, thread, time::Duration};
 use std::os::unix::fs::OpenOptionsExt;
 
 use input_linux::{UInputHandle, Key};
 use nix::libc::O_NONBLOCK;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream, Result};
-use tokio::net::{TcpListener, TcpStream};
 mod models;
 mod input;
 
-#[tokio::main]
-async fn main() -> Result<()>  {
+
+fn main() -> Result<()> {
 	let uinput_file = OpenOptions::new()
 		.read(true)
 		.write(true)
@@ -21,54 +21,36 @@ async fn main() -> Result<()>  {
 	thread::sleep(Duration::from_secs(1));
 	
 
-	let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
+	let listener = TcpListener::bind("0.0.0.0:1234").unwrap();
 	println!("Server is listening on *:1234");
 
 	loop {
-		let ( socket, address ) = listener.accept().await?;
+		let ( socket, address ) = listener.accept()?;
 		println!("New connection received from {:?}", address);
 
-		handle_connection(socket, &uinput).await?;
+		handle_connection(socket, &uinput)?;
+		println!("Client closed the connection");
 	}
-
-	// for _ in 0..50 {
-	// 	move_cursor(&uinput, 5, 5);
-	// 	thread::sleep(Duration::from_micros(15_000));
-	// }
-	
-	// let keys = [Key::H, Key::E, Key::L, Key::L, Key::O, Key::Space, Key::W, Key::O, Key::R, Key::L, Key::D, Key::Enter];
-
-	// for key in keys {
-	// 	press_key(&uinput, key);
-	// }
-
-
-	// ;   
 }
 
 
-async fn handle_connection(socket: TcpStream, uinput: &UInputHandle<File>) -> Result<()> {
-	let mut socket = BufStream::new(socket);
-	socket.write_all(b"Hello from the server\n").await?;
-	socket.flush().await?;
+fn handle_connection(socket: TcpStream, uinput: &UInputHandle<File>) -> Result<()> {
+	let socket = BufReader::new(socket);
 
-	let mut line = vec![];
-
-	loop {
-		line.clear();
-		socket.read_until(b'\n', &mut line).await?;
+	for line in socket.lines() {
+		let line = line.unwrap();
 
 		if line.is_empty() {
 			println!("Exited the connection");
 			return Ok(());
 		}
-
-		let msg: models::Message = serde_json::from_slice(&line).unwrap();
+	
+		let msg: models::Message = serde_json::from_str(&line).unwrap();
 		handle_message(msg, uinput).unwrap();
 
-		// socket.write_all(&line).await?;
-		// socket.flush().await?;
 	}
+
+	Ok(())
 }
 
 fn handle_message(msg: models::Message, uinput: &UInputHandle<File>) -> Result<()> {
