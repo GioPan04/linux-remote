@@ -11,26 +11,31 @@ mod input;
 
 
 fn main() -> Result<()> {
-	let uinput_file = OpenOptions::new()
-		.read(true)
-		.write(true)
-		.custom_flags(O_NONBLOCK)
-		.open("/dev/uinput")?;
-		
-	let uinput = input::create_mouse(uinput_file).unwrap();
-	thread::sleep(Duration::from_secs(1));
-	
-
 	let listener = TcpListener::bind("0.0.0.0:1234").unwrap();
 	println!("Server is listening on *:1234");
+	
+	
+	for stream in listener.incoming() {
+		let socket = stream.unwrap();
+		
+		thread::spawn(|| {
+			let uinput_file = OpenOptions::new()
+				.read(true)
+				.write(true)
+				.custom_flags(O_NONBLOCK)
+				.open("/dev/uinput").unwrap();
 
-	loop {
-		let ( socket, address ) = listener.accept()?;
-		println!("New connection received from {:?}", address);
+			let uinput = input::create_mouse(uinput_file).unwrap();
+			thread::sleep(Duration::from_secs(1));
 
-		handle_connection(socket, &uinput)?;
-		println!("Client closed the connection");
+			println!("New connection received from {:?}", socket.peer_addr().unwrap());
+			handle_connection(socket, &uinput).unwrap();
+			println!("Client closed the connection");
+		});
 	}
+
+	Ok(())
+
 }
 
 
