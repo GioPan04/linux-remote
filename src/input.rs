@@ -18,7 +18,8 @@ pub fn press_key(uinput: &UInputHandle<File>, key: Key) {
 		*InputEvent::from(KeyEvent::new(ZERO, key, KeyState::RELEASED)).as_raw(),
 		*InputEvent::from(SynchronizeEvent::new(ZERO, SynchronizeKind::Report, 0)).as_raw(),
 	];
-	uinput.write(&events).unwrap();
+	
+	uinput.write(&events).expect("Could not write keyboard event");
 }
 
 pub fn move_cursor(uinput: &UInputHandle<File>, x: i32, y: i32) {
@@ -28,7 +29,8 @@ pub fn move_cursor(uinput: &UInputHandle<File>, x: i32, y: i32) {
 		*InputEvent::from(RelativeEvent::new(ZERO, RelativeAxis::Y, y)).as_raw(),
 		*InputEvent::from(SynchronizeEvent::new(ZERO, SynchronizeKind::Report, 0)).as_raw(),
 	];
-	uinput.write(&events).unwrap();
+
+	uinput.write(&events).expect("Could not write mouse event");
 }
 
 pub fn create_mouse(uinput_file: File) -> io::Result<UInputHandle<File>> {

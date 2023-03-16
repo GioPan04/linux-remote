@@ -15,18 +15,22 @@ fn main() -> Result<()> {
 
 	let (tx, rx) = mpsc::channel::<models::Message>();
 
-	thread::Builder::new().name("UInput handler".into()).spawn(|| mouse_handler(rx)).expect("Failed to start the thread");	
+	thread::Builder::new()
+		.name("UInput handler".into())
+		.spawn(move || mouse_handler(rx))?;	
 	
 	for stream in listener.incoming() {
 		let socket = stream.unwrap();
 
 		let tx = tx.clone();
 		
-		thread::spawn(move || {
-			println!("New connection received from {:?}", socket.peer_addr().unwrap());
-			handle_connection(socket, tx).unwrap();
-			println!("Client closed the connection");
-		});
+		thread::Builder::new()
+			.name(format!("Connection {:?}", socket.peer_addr()))
+			.spawn(move || {
+				println!("New connection received from {:?}", socket.peer_addr().unwrap());
+				let _ = handle_connection(socket, tx);
+				println!("Client closed the connection");
+			})?;
 	}
 
 	Ok(())
@@ -44,8 +48,11 @@ fn handle_connection(socket: TcpStream, tx: Sender<models::Message>) -> Result<(
 			return Ok(());
 		}
 	
-		let msg: models::Message = serde_json::from_str(&line)?;
-		tx.send(msg).unwrap();
+		match serde_json::from_str::<models::Message>(&line) {
+			Ok(msg) => tx.send(msg).unwrap(),
+			Err(err) => eprintln!("Couldn't decode message: {:?}", err)
+		}
+
 	}
 
 	Ok(())
