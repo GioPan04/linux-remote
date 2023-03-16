@@ -9,6 +9,7 @@ My version uses low level tools like uinput and uses little to no dependencies,
 
 ## Todos
 
+- [x] Mouse/Keyboard remote control
 - [ ] SSL encryption
 - [ ] Trusted devices
 - [ ] Multimedia integration
