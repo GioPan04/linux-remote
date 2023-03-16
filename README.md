@@ -4,8 +4,8 @@ A KDE Connect replacement written in Rust. This is not a drop-in replacement, yo
 
 ## The reason
 
-Why build this from the ground up? Well, I didn'y wanna to install all the kde dependencies only to control remotely my PC.
-My version uses low level tools like uinput and uses little to no dependencies,
+Why build this from the ground up? Well, I didn't wanna to install all the kde dependencies only to control remotely my PC.
+My version uses low level tools like uinput and uses little to no dependencies.
 
 ## Todos
 
