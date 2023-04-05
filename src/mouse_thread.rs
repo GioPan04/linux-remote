@@ -4,7 +4,7 @@ use std::sync::mpsc::Receiver;
 use std::{fs::OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 
-use input_linux::{Key, UInputHandle, RangeError};
+use input_linux::{Key, UInputHandle};
 use nix::libc::O_NONBLOCK;
 
 use crate::{models, input};
