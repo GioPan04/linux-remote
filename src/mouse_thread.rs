@@ -10,7 +10,7 @@ use nix::libc::O_NONBLOCK;
 use crate::{models, input};
 
 
-pub fn mouse_handler(rx: Receiver<models::Message>) -> io::Result<()> {
+pub fn mouse_handler(rx: Receiver<models::ClientMessage>) -> io::Result<()> {
 
   let uinput_file = OpenOptions::new()
     .read(true)
@@ -29,13 +29,13 @@ pub fn mouse_handler(rx: Receiver<models::Message>) -> io::Result<()> {
   Ok(())
 }
 
-fn decode_message(message: models::Message, uinput: &UInputHandle<File>) -> io::Result<()> {
-  match message.action {
-    0x1 => {
+fn decode_message(message: models::ClientMessage, uinput: &UInputHandle<File>) -> io::Result<()> {
+  match message.target.as_str() {
+    "uinput:cursor" => {
       let coordinates: models::CursorMoveMessage = serde_json::from_value(message.payload)?;
       input::move_cursor(&uinput, coordinates.x, coordinates.y);
     }
-    0x2 => {
+    "uinput:keyboard" => {
       let keypress: models::KeyPressMessage = serde_json::from_value(message.payload)?;
       input::press_key(&uinput, Key::from_code(keypress.key)?)
     }
