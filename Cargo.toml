@@ -9,3 +9,4 @@ mpris = "2.0.0"
 nix = "0.26.2"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
+tokio = { version = "1.27.0", features = ["full"] }

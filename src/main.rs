@@ -1,7 +1,8 @@
 use std::io::Result;
-use std::net::TcpListener;
-use std::sync::mpsc;
 use std::thread;
+
+use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 
 mod models;
 mod input;
@@ -10,21 +11,22 @@ mod player_thread;
 mod connection;
 
 
-fn main() -> Result<()> {
-	let listener = TcpListener::bind("0.0.0.0:1234").unwrap();
+#[tokio::main]
+async fn main() -> Result<()> {
+	let listener = TcpListener::bind("0.0.0.0:1234").await.unwrap();
 	println!("Server is listening on *:1234");
 
-	let (tx, rx) = mpsc::channel::<models::ClientMessage>();
+	let (tx, _) = broadcast::channel::<models::ClientMessage>(16);
 
-	thread::Builder::new()
-		.name("UInput handler".into())
-		.spawn(move || mouse_thread::mouse_handler(rx))?;	
+	let uinput_rx = tx.clone().subscribe();
+	tokio::spawn(async move { mouse_thread::mouse_handler(uinput_rx).await });
 
+	let player_tx = tx.clone();
 	thread::Builder::new()
 		.name("Player handler".into())
-		.spawn(move || player_thread::player_runner())?;
+		.spawn(move || player_thread::player_runner(player_tx))?;
 
-	connection::setup_connection(listener, tx)?;
+	connection::setup_connection(listener, tx).await?;
 
 	Ok(())
 }

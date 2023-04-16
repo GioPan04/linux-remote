@@ -5,7 +5,7 @@ A KDE Connect replacement written in Rust. This is not a drop-in replacement, yo
 ## The reason
 
 Why build this from the ground up? Well, I didn't wanna to install all the kde dependencies only to control remotely my PC.
-My version uses low level tools like uinput and uses little to no dependencies.
+My version uses low level tools like uinput and mpris and uses little to no dependencies.
 
 ## Todos
 
@@ -13,3 +13,5 @@ My version uses low level tools like uinput and uses little to no dependencies.
 - [ ] SSL encryption
 - [ ] Trusted devices
 - [ ] Multimedia integration
+  - [x] Send events to clients
+  - [ ] Control players from clients 

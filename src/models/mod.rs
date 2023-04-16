@@ -6,3 +6,6 @@ pub use cursor_move::CursorMoveMessage;
 
 mod keypress;
 pub use keypress::KeyPressMessage;
+
+mod track;
+pub use track::Track;
