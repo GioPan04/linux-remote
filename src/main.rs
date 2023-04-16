@@ -20,6 +20,10 @@ fn main() -> Result<()> {
 		.name("UInput handler".into())
 		.spawn(move || mouse_thread::mouse_handler(rx))?;	
 
+	thread::Builder::new()
+		.name("Player handler".into())
+		.spawn(move || player_thread::player_runner())?;
+
 	connection::setup_connection(listener, tx)?;
 
 	Ok(())
