@@ -6,8 +6,7 @@ use tokio::sync::broadcast;
 
 mod models;
 mod input;
-mod mouse_thread;
-mod player_thread;
+mod threads;
 mod connection;
 
 
@@ -19,12 +18,12 @@ async fn main() -> Result<()> {
 	let (tx, _) = broadcast::channel::<models::ClientMessage>(16);
 
 	let uinput_rx = tx.clone().subscribe();
-	tokio::spawn(async move { mouse_thread::mouse_handler(uinput_rx).await });
+	tokio::spawn(async move { threads::mouse_handler(uinput_rx).await });
 
 	let player_tx = tx.clone();
 	thread::Builder::new()
 		.name("Player handler".into())
-		.spawn(move || player_thread::player_runner(player_tx))?;
+		.spawn(move || threads::player_runner(player_tx))?;
 
 	connection::setup_connection(listener, tx).await?;
 
