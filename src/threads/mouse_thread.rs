@@ -29,13 +29,13 @@ pub async fn mouse_handler(mut rx: Receiver<models::ClientMessage>) -> io::Resul
 
 fn decode_message(message: models::ClientMessage, uinput: &UInputHandle<File>) -> io::Result<()> {
   match message.target.as_str() {
-    "uinput:cursor" => {
+    "uinput:cursor_move" => {
       let coordinates: models::CursorMoveMessage = serde_json::from_value(message.payload.unwrap())?;
       input::move_cursor(&uinput, coordinates.x, coordinates.y);
     }
-    "uinput:keyboard" => {
-      let keypress: models::KeyPressMessage = serde_json::from_value(message.payload.unwrap())?;
-      input::press_key(&uinput, Key::from_code(keypress.key)?)
+    "uinput:key_press" => {
+      let key: u16 = serde_json::from_value(message.payload.unwrap())?;
+      input::press_key(&uinput, Key::from_code(key)?);
     }
     _ => {}
   }
