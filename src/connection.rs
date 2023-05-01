@@ -46,6 +46,7 @@ async fn handle_connection(mut socket: TcpStream, tx: Sender<models::ClientMessa
 				let mut msg = json!(result.unwrap()).to_string();
 				msg.push('\n');
 				writer.write_all(msg.as_bytes()).await.unwrap();
+				writer.flush().await.unwrap();
 			}
 		}
 
