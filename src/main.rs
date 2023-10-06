@@ -25,6 +25,9 @@ async fn main() -> Result<()> {
 		.name("Player handler".into())
 		.spawn(move || threads::player_runner(player_tx))?;
 
+	let notification_rx = tx.clone().subscribe();
+	tokio::spawn(async move { threads::notification_handler(notification_rx).await });
+
 	connection::setup_connection(listener, tx).await?;
 
 	Ok(())

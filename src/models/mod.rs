@@ -6,3 +6,6 @@ pub use cursor_move::CursorMoveMessage;
 
 mod track;
 pub use track::Track;
+
+mod notification;
+pub use notification::NotificationMessage;

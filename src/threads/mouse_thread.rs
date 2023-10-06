@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io;
-use std::{fs::OpenOptions};
+use std::fs::OpenOptions;
 use std::os::unix::fs::OpenOptionsExt;
 
 use input_linux::{Key, UInputHandle};
